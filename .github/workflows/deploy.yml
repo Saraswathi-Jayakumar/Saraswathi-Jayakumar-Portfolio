@@ -1,0 +1,35 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Copy files to EC2 using SCP
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.DOCKER_EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.DOCKER_EC2_KEY }}
+        source: "."
+        target: "/home/ec2-user/portfolio"
+
+    - name: SSH into EC2 and build Docker image
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DOCKER_EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.DOCKER_EC2_KEY }}
+        script: |
+          cd /home/ec2-user/portfolio
+          docker build -t portfolio .
+          docker stop portfolio || true
+          docker rm portfolio || true
+          docker run -d -p 80:80 --name portfolio portfolio
